@@ -1,0 +1,16 @@
+artifact_uri: mlflow-artifacts:/348043093081977792/11cab047b24e4fb0a519b719c6b61201/artifacts
+deleted_time: 1765365059422
+end_time: 1765364782957
+entry_point_name: ''
+experiment_id: '348043093081977792'
+lifecycle_stage: deleted
+run_id: 11cab047b24e4fb0a519b719c6b61201
+run_name: calm-ant-237
+run_uuid: 11cab047b24e4fb0a519b719c6b61201
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765364748884
+status: 3
+tags: []
+user_id: rohit

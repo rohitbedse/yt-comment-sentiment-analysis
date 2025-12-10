@@ -1,4 +1,4 @@
 [core]
-    remote = myremote
-['remote "myremote"']
-    url = C:\Users\rohit\AppData\Local\Temp
+    remote = localstorage
+['remote "localstorage"']
+    url = ../dvc_local_storage

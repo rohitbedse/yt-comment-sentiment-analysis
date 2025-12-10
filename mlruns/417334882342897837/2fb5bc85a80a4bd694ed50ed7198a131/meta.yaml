@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/417334882342897837/2fb5bc85a80a4bd694ed50ed7198a131/artifacts
+end_time: 1765365102886
+entry_point_name: ''
+experiment_id: '417334882342897837'
+lifecycle_stage: active
+run_id: 2fb5bc85a80a4bd694ed50ed7198a131
+run_name: caring-fish-310
+run_uuid: 2fb5bc85a80a4bd694ed50ed7198a131
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1765365063855
+status: 3
+tags: []
+user_id: rohit

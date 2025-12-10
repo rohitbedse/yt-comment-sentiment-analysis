@@ -1,0 +1,7 @@
+artifact_location: mlflow-artifacts:/614674982174444038
+creation_time: 1763618666160
+experiment_id: '614674982174444038'
+last_update_time: 1765365062520
+lifecycle_stage: deleted
+name: dvc-pipeline-runs
+tags: {}
