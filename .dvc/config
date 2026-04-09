@@ -1,4 +1,4 @@
 [core]
     remote = myremote
 ['remote "myremote"']
-    url = https://dagshub.com/rohitbedse/yt-comment-sentiment-analysis.mlflow
+    url = https://dagshub.com/rohitbedse/yt-comment-sentiment-analysis.dvc
