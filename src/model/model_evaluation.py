@@ -126,46 +126,59 @@ def save_model_info(run_id: str, model_path: str, file_path: str) -> None:
         raise
 
 
-# ... (everything same above)
-
 def main():
     mlflow.set_tracking_uri("https://dagshub.com/rohitbedse/yt-comment-sentiment-analysis.mlflow")
+
     mlflow.set_experiment('dvc-pipeline-runs')
     
     with mlflow.start_run() as run:
         try:
+            # Load parameters from YAML file
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
             params = load_params(os.path.join(root_dir, 'params.yaml'))
 
-            # Log params
+            # Log parameters
             for key, value in params.items():
                 mlflow.log_param(key, value)
             
-            # Load model & vectorizer
+            # Load model and vectorizer
             model = load_model(os.path.join(root_dir, 'lgbm_model.pkl'))
             vectorizer = load_vectorizer(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
 
-            # Load test data
+            # Load test data for signature inference
             test_data = load_data(os.path.join(root_dir, 'data/interim/test_processed.csv'))
 
+            # Prepare test data
             X_test_tfidf = vectorizer.transform(test_data['clean_comment'].values)
             y_test = test_data['category'].values
 
-            # Input example + signature
-            input_example = pd.DataFrame(
-                X_test_tfidf.toarray()[:5],
-                columns=vectorizer.get_feature_names_out()
+            # Create a DataFrame for signature inference (using first few rows as an example)
+            input_example = pd.DataFrame(X_test_tfidf.toarray()[:5], columns=vectorizer.get_feature_names_out())  # <--- Added for signature
+
+            # Infer the signature
+            signature = infer_signature(input_example, model.predict(X_test_tfidf[:5]))  # <--- Added for signature
+
+            # Log model with signature and register it in one step
+            model_name = "yt_chrome_plugin_model"
+            logged_model_info = mlflow.sklearn.log_model(
+                sk_model=model,
+                name="lgbm_model",
+                signature=signature,
+                input_example=input_example,
+                registered_model_name=model_name
             )
 
-            signature = infer_signature(
-                input_example,
-                model.predict(X_test_tfidf[:5])
-            )
+            # Save model info for the registration/staging step
+            logger.debug(f"Logged model URI: {logged_model_info.model_uri}")
+            save_model_info(run.info.run_id, logged_model_info.model_uri, 'experiment_info.json')
 
-            # ✅ Evaluate FIRST
+            # Log the vectorizer as an artifact
+            mlflow.log_artifact(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
+
+            # Evaluate model and get metrics
             report, cm = evaluate_model(model, X_test_tfidf, y_test)
 
-            # Log metrics
+            # Log classification report metrics for the test data
             for label, metrics in report.items():
                 if isinstance(metrics, dict):
                     mlflow.log_metrics({
@@ -177,24 +190,10 @@ def main():
             # Log confusion matrix
             log_confusion_matrix(cm, "Test Data")
 
-            # Log vectorizer
-            mlflow.log_artifact(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
-
-            # Add tags
+            # Add important tags
             mlflow.set_tag("model_type", "LightGBM")
             mlflow.set_tag("task", "Sentiment Analysis")
             mlflow.set_tag("dataset", "YouTube Comments")
-
-            # ✅ NOW log model (AFTER everything)
-            mlflow.sklearn.log_model(
-                sk_model=model,
-                artifact_path="model",   # ✅ FIXED
-                signature=signature,
-                input_example=input_example
-                )
-
-            # ✅ SAVE LAST (CRITICAL FIX)
-            save_model_info(run.info.run_id, "model", 'experiment_info.json')
 
         except Exception as e:
             logger.error(f"Failed to complete model evaluation: {e}")

@@ -41,24 +41,32 @@ def load_model_info(file_path: str) -> dict:
         raise
 
 def register_model(model_name: str, model_info: dict):
-    """Register the model to the MLflow Model Registry."""
+    """Transition the latest model version to Staging."""
     try:
-        model_uri = f"runs:/{model_info['run_id']}/model"
+        client = mlflow.tracking.MlflowClient()
         
-        # Register the model
-        model_version = mlflow.register_model(model_uri, model_name)
+        # Get all versions and find the latest
+        versions = client.search_model_versions(f"name='{model_name}'")
+        if not versions:
+            raise Exception(f"No versions found for model '{model_name}'")
+        
+        latest_version = max(versions, key=lambda v: int(v.version)).version
+        logger.debug(f'Latest version of {model_name}: {latest_version}')
         
         # Transition the model to "Staging" stage
-        client = mlflow.tracking.MlflowClient()
-        client.transition_model_version_stage(
-            name=model_name,
-            version=model_version.version,
-            stage="Staging"
-        )
+        try:
+            client.transition_model_version_stage(
+                name=model_name,
+                version=latest_version,
+                stage="Staging"
+            )
+        except Exception:
+            # Fallback: use aliases if transition_model_version_stage is deprecated
+            client.set_registered_model_alias(model_name, "staging", latest_version)
         
-        logger.debug(f'Model {model_name} version {model_version.version} registered and transitioned to Staging.')
+        logger.debug(f'Model {model_name} version {latest_version} transitioned to Staging.')
     except Exception as e:
-        logger.error('Error during model registration: %s', e)
+        logger.error('Error during model staging: %s', e)
         raise
 
 def main():
