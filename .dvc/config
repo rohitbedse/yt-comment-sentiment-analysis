@@ -1,0 +1,4 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = D:\YT_Comment_Notebooks\dvc_junk
