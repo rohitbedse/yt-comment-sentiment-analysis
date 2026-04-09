@@ -126,57 +126,46 @@ def save_model_info(run_id: str, model_path: str, file_path: str) -> None:
         raise
 
 
+# ... (everything same above)
+
 def main():
     mlflow.set_tracking_uri("https://dagshub.com/rohitbedse/yt-comment-sentiment-analysis.mlflow")
-
     mlflow.set_experiment('dvc-pipeline-runs')
     
     with mlflow.start_run() as run:
         try:
-            # Load parameters from YAML file
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
             params = load_params(os.path.join(root_dir, 'params.yaml'))
 
-            # Log parameters
+            # Log params
             for key, value in params.items():
                 mlflow.log_param(key, value)
             
-            # Load model and vectorizer
+            # Load model & vectorizer
             model = load_model(os.path.join(root_dir, 'lgbm_model.pkl'))
             vectorizer = load_vectorizer(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
 
-            # Load test data for signature inference
+            # Load test data
             test_data = load_data(os.path.join(root_dir, 'data/interim/test_processed.csv'))
 
-            # Prepare test data
             X_test_tfidf = vectorizer.transform(test_data['clean_comment'].values)
             y_test = test_data['category'].values
 
-            # Create a DataFrame for signature inference (using first few rows as an example)
-            input_example = pd.DataFrame(X_test_tfidf.toarray()[:5], columns=vectorizer.get_feature_names_out())  # <--- Added for signature
-
-            # Infer the signature
-            signature = infer_signature(input_example, model.predict(X_test_tfidf[:5]))  # <--- Added for signature
-
-            # Log model with signature
-            mlflow.sklearn.log_model(
-                model,
-                "lgbm_model",
-                signature=signature,  # <--- Added for signature
-                input_example=input_example  # <--- Added input example
+            # Input example + signature
+            input_example = pd.DataFrame(
+                X_test_tfidf.toarray()[:5],
+                columns=vectorizer.get_feature_names_out()
             )
 
-            # Save model info
-            model_path = "lgbm_model"
-            save_model_info(run.info.run_id, model_path, 'experiment_info.json')
+            signature = infer_signature(
+                input_example,
+                model.predict(X_test_tfidf[:5])
+            )
 
-            # Log the vectorizer as an artifact
-            mlflow.log_artifact(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
-
-            # Evaluate model and get metrics
+            # ✅ Evaluate FIRST
             report, cm = evaluate_model(model, X_test_tfidf, y_test)
 
-            # Log classification report metrics for the test data
+            # Log metrics
             for label, metrics in report.items():
                 if isinstance(metrics, dict):
                     mlflow.log_metrics({
@@ -188,10 +177,24 @@ def main():
             # Log confusion matrix
             log_confusion_matrix(cm, "Test Data")
 
-            # Add important tags
+            # Log vectorizer
+            mlflow.log_artifact(os.path.join(root_dir, 'tfidf_vectorizer.pkl'))
+
+            # Add tags
             mlflow.set_tag("model_type", "LightGBM")
             mlflow.set_tag("task", "Sentiment Analysis")
             mlflow.set_tag("dataset", "YouTube Comments")
+
+            # ✅ NOW log model (AFTER everything)
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model",   # ✅ FIXED
+                signature=signature,
+                input_example=input_example
+                )
+
+            # ✅ SAVE LAST (CRITICAL FIX)
+            save_model_info(run.info.run_id, "model", 'experiment_info.json')
 
         except Exception as e:
             logger.error(f"Failed to complete model evaluation: {e}")
