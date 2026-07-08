@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const outputDiv = document.getElementById("output");
-  const API_KEY = '#';
-  const API_URL = 'http://127.0.0.1:8000';
+  const API_KEY = 'AIzaSyD5jhZpGn9dJC0bB8uqb4DveUVtD8WnHtk';
+  const API_URL = 'http://127.0.0.1:8000';``
 
   function showIdle() {
     outputDiv.innerHTML = `<div class="idle-state"><div class="idle-icon">🎬</div><div class="idle-text">Open a YouTube video<br>to analyze its comments</div></div>`;
@@ -28,6 +28,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       while (comments.length < 500) {
         const res = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&maxResults=100&pageToken=${pageToken}&key=${API_KEY}`);
         const data = await res.json();
+        if (data.error) {
+          throw new Error(data.error.message || 'YouTube API error');
+        }
+        if (!res.ok) {
+          throw new Error(`YouTube API returned ${res.status}`);
+        }
         if (data.items) {
           data.items.forEach(item => {
             const s = item.snippet.topLevelComment.snippet;
@@ -39,7 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     } catch (e) {
       console.error('Fetch error:', e);
-      outputDiv.innerHTML = `<div class="error-box">❌ Error fetching comments. Check your API key.</div>`;
+      outputDiv.innerHTML = `<div class="error-box">❌ Error fetching comments: ${escapeHtml(e.message || 'Unexpected error')}</div>`;
+      return null;
     }
     return comments;
   }
@@ -160,8 +167,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     outputDiv.innerHTML = setStatus('loading', `Fetching comments for <b>${videoId}</b>…`);
 
     const comments = await fetchComments(videoId);
-    if (!comments || comments.length === 0) {
-      outputDiv.innerHTML = `<div class="error-box">❌ No comments found for this video.</div>`;
+    if (!comments) return;
+    if (comments.length === 0) {
+      outputDiv.innerHTML = `<div class="error-box">❌ No comments found for this video. Comments may be disabled, hidden, or blocked by the YouTube API.</div>`;
       return;
     }
 
